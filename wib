@@ -1,0 +1,44 @@
+RULE_0_IPV4ADDR="2.212.4.22"
+RULE_0_PORTSETS="0-10 1025-1036 2025-2036 3025-3036"
+k=0
+cfg=kdb
+
+
+DONT_SNAT_TO="0"
+foo(){
+            local portcount=0                                                    
+            local allports=""                                                    
+            for portset in $(eval "echo \$RULE_${k}_PORTSETS"); do               
+                local startport=${portset%-*}                                    
+                local endport=${portset#*-}                                      
+                                                                                 
+                for x in $(seq "$startport" "$endport"); do                      
+                    case " $DONT_SNAT_TO " in                                    
+                        *" $x "*)                                                
+                            # Skip this port                                     
+                            ;;                                                   
+                        *)                                                       
+                            allports="${allports}${portcount} : ${x}, "         
+                            portcount=$((portcount + 1))
+                            ;;                                                   
+                    esac                                                         
+                done                                                             
+            done                                                                 
+            allports=${allports%??}
+
+cat << EOF >/tmp/mapet.nft
+#!/usr/sbin/nft -f
+
+destroy table inet mapet
+
+table inet mapet {
+	chain srcnat {
+		type nat hook postrouting priority 0; policy accept;
+		ip protocol {tcp, udp, icmp} oifname map-$cfg snat ip to $(eval echo \$RULE_${k}_IPV4ADDR) : numgen inc mod $portcount map { $allports }
+	}
+}
+EOF
+
+}
+
+foo
