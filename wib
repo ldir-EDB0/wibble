@@ -32,9 +32,14 @@ cat << EOF >/tmp/mapet.nft
 destroy table inet mapet
 
 table inet mapet {
+	map mapping {
+		$allports
+	}
 	chain srcnat {
 		type nat hook postrouting priority 0; policy accept;
-		ip protocol {tcp, udp, icmp} oifname map-$cfg snat ip to $(eval echo \$RULE_${k}_IPV4ADDR) : numgen inc mod $portcount map { $allports }
+		ip protocol tcp oifname map-$cfg snat ip to $(eval echo \$RULE_${k}_IPV4ADDR) : numgen inc mod $portcount map mapping
+		ip protocol udp oifname map-$cfg snat ip to $(eval echo \$RULE_${k}_IPV4ADDR) : numgen inc mod $portcount map mapping
+		ip protocol icmp oifname map-$cfg snat ip to $(eval echo \$RULE_${k}_IPV4ADDR) : numgen inc mod $portcount map mapping
 	}
 }
 EOF
